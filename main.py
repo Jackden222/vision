@@ -1,42 +1,63 @@
 from kivy.app import App
+from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.button import Button
-from kivy.uix.label import Label
-from kivy.uix.boxlayout import BoxLayout
-from kivy.clock import Clock
+from kivy.core.window import Window
+from plyer import platform
+from jnius import autoclass
+
+# Используйте pyjnius для взаимодействия с Android API
+PythonActivity = autoclass('org.kivy.android.PythonActivity')
+Context = autoclass('android.content.Context')
+WindowManager = autoclass('android.view.WindowManager$LayoutParams')
 
 
-class ClickerApp(App):
+class OverlayWindow(FloatLayout):
+    def __init__(self, **kwargs):
+        super(OverlayWindow, self).__init__(**kwargs)
+        self.size_hint = (None, None)
+        self.size = (300, 200)
+        self.pos = (Window.width - self.width, 0)
+
+        # Создайте кнопки
+        self.start_button = Button(text='Start', size_hint=(
+            0.3, 0.2), pos=(0, self.height - self.height * 0.2))
+        self.stop_button = Button(text='Stop', size_hint=(0.3, 0.2), pos=(
+            self.width - self.width * 0.3, self.height - self.height * 0.2))
+        self.reload_button = Button(text='Reload', size_hint=(0.3, 0.2), pos=(
+            self.width // 2 - self.width * 0.15, self.height - self.height * 0.2))
+
+        # Добавьте обработчики событий
+        self.start_button.bind(on_press=self.start_app)
+        self.stop_button.bind(on_press=self.stop_app)
+        self.reload_button.bind(on_press=self.reload_app)
+
+        # Добавьте кнопки на экран
+        self.add_widget(self.start_button)
+        self.add_widget(self.stop_button)
+        self.add_widget(self.reload_button)
+
+    def start_app(self, instance):
+        print("Starting the app...")
+
+    def stop_app(self, instance):
+        print("Stopping the app...")
+
+    def reload_app(self, instance):
+        print("Reloading the app...")
+
+
+class OverlayApp(App):
     def build(self):
-        self.clicks = 0
-        self.running = False
-        self.label = Label(text=str(self.clicks))
-        self.start_button = Button(text='Start')
-        self.start_button.bind(on_press=self.start_clicker)
-        self.stop_button = Button(text='Stop')
-        self.stop_button.bind(on_press=self.stop_clicker)
-        self.layout = BoxLayout(orientation='vertical')
-        self.layout.add_widget(self.label)
-        self.layout.add_widget(self.start_button)
-        self.layout.add_widget(self.stop_button)
-        return self.layout
+        # Создайте окно
+        overlay_window = OverlayWindow()
 
-    def start_clicker(self, instance):
-        self.running = True
-        Clock.schedule_interval(self.increment_clicks, 1)
+        # Сделайте окно системным оповещением
+        if platform == 'android':
+            PythonActivity.mActivity.getWindow().addFlags(
+                WindowManager.FLAG_NOT_FOCUSABLE | WindowManager.FLAG_NOT_TOUCHABLE)
 
-    def stop_clicker(self, instance):
-        self.running = False
-
-    def increment_clicks(self, dt):
-        if self.running:
-            self.clicks += 1
-            self.label.text = str(self.clicks)
-
-    def on_touch_down(self, touch):
-        if self.running:
-            self.clicks += 1
-            self.label.text = str(self.clicks)
+        return overlay_window
 
 
 if __name__ == '__main__':
-    ClickerApp().run()
+    OverlayApp().run()
